@@ -154,3 +154,40 @@ socket.on("room:closed", data => { alert(data.message); leaveRoom(); });
 
 const invitedRoom = getRoomIdFromUrl();
 if (invitedRoom) { $("roomId").value = invitedRoom; $("joinPass").focus(); }
+
+// PWA installation: the app shell can open standalone; chat still requires a connection.
+let installPromptEvent = null;
+const installButton = $("installAppButton");
+const isIOSDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+if (isIOSDevice && !window.matchMedia("(display-mode: standalone)").matches) {
+  installButton.classList.remove("hidden");
+}
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPromptEvent = event;
+  installButton.classList.remove("hidden");
+});
+window.addEventListener("appinstalled", () => {
+  installPromptEvent = null;
+  installButton.classList.add("hidden");
+  showStatus("homeStatus", "QuietRoom was added to your home screen.", false);
+});
+installButton.addEventListener("click", async () => {
+  if (installPromptEvent) {
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    installPromptEvent = null;
+    installButton.classList.add("hidden");
+  } else if (isIOSDevice) {
+    alert('To install QuietRoom: tap the Share button in Safari, then choose "Add to Home Screen".');
+  }
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(error => {
+      console.warn("QuietRoom service worker registration failed:", error);
+    });
+  });
+}
