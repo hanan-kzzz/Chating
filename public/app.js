@@ -32,7 +32,8 @@ async function decryptMessage(message) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(message.iv) }, key, base64ToBytes(message.ciphertext));
   return new TextDecoder().decode(plain);
 }
-\nfunction showStatus(id, message, isError = true) {
+
+function showStatus(id, message, isError = true) {
   const el = $(id); el.textContent = message; el.style.color = isError ? "#c05d67" : "#4a9a78";
 }
 function showHome() { $("homeView").classList.remove("hidden"); $("roomView").classList.add("hidden"); }
@@ -222,7 +223,8 @@ socket.on("call:ended", data => { if (data.callId === state.activeCallId) { clea
 function leaveRoom() {
   cleanupCall(false);
   socket.disconnect(); socket.connect();
-  if (state.roomId) sessionStorage.removeItem("quietroom-key-" + state.roomId);\n  state.roomId = null; state.alias = null; state.moderator = false; state.moderatorKey = null; state.passcode = null; state.roomKey = null;
+  if (state.roomId) sessionStorage.removeItem("quietroom-key-" + state.roomId);
+  state.roomId = null; state.alias = null; state.moderator = false; state.moderatorKey = null; state.passcode = null; state.roomKey = null;
   state.members = []; state.blocked.clear();
   history.replaceState({}, "", "/"); showHome();
 }
