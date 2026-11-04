@@ -120,14 +120,22 @@ function makePeer(peerId) {
   state.localStream?.getTracks().forEach(track => pc.addTrack(track, state.localStream));
   pc.onicecandidate = e => { if (e.candidate) socket.emit("call:signal", { callId: state.activeCallId, targetId: peerId, signal: { type: "ice", candidate: e.candidate } }); };
   pc.ontrack = e => {
-    let video = document.getElementById("remote-" + peerId);
-    if (!video) {
-      const tile = document.createElement("div"); tile.className = "remote-tile";
-      video = document.createElement("video"); video.id = "remote-" + peerId; video.autoplay = true; video.playsInline = true; video.className = "remote-video";
-      const label = document.createElement("span"); label.className = "remote-label"; label.textContent = state.members.find(m => m.id === peerId)?.alias || "Room member";
-      tile.append(video, label); $("remoteVideos").append(tile);
+    const stream = e.streams[0];
+    if (e.track.kind === "audio") {
+      let audio = document.getElementById("remote-audio-" + peerId);
+      if (!audio) { audio = document.createElement("audio"); audio.id = "remote-audio-" + peerId; audio.autoplay = true; audio.playsInline = true; $("remoteVideos").append(audio); }
+      audio.srcObject = stream;
     }
-    video.srcObject = e.streams[0];
+    if (e.track.kind === "video") {
+      let video = document.getElementById("remote-" + peerId);
+      if (!video) {
+        const tile = document.createElement("div"); tile.className = "remote-tile";
+        video = document.createElement("video"); video.id = "remote-" + peerId; video.autoplay = true; video.playsInline = true; video.className = "remote-video";
+        const label = document.createElement("span"); label.className = "remote-label"; label.textContent = state.members.find(m => m.id === peerId)?.alias || "Room member";
+        tile.append(video, label); $("remoteVideos").append(tile);
+      }
+      video.srcObject = stream;
+    }
   };
   pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(pc.connectionState)) removePeer(peerId); };
   state.peerConnections.set(peerId, pc); return pc;
@@ -144,7 +152,7 @@ async function receiveSignal(data) {
     else if (signal.type === "ice" && signal.candidate) await pc.addIceCandidate(signal.candidate);
   } catch (_) { callStatus("Connection failed. Please try again."); }
 }
-function removePeer(id) { const pc = state.peerConnections.get(id); if (pc) pc.close(); state.peerConnections.delete(id); document.getElementById("remote-" + id)?.closest(".remote-tile")?.remove(); }
+function removePeer(id) { const pc = state.peerConnections.get(id); if (pc) pc.close(); state.peerConnections.delete(id); document.getElementById("remote-" + id)?.closest(".remote-tile")?.remove(); document.getElementById("remote-audio-" + id)?.remove(); }
 function cleanupCall(notify) {
   if (notify && state.activeCallId) socket.emit("call:leave", { callId: state.activeCallId });
   state.peerConnections.forEach(pc => pc.close()); state.peerConnections.clear();
