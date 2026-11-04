@@ -48,3 +48,33 @@ footer{height:62px;border-top:1px solid #e9eaf1;display:flex;align-items:center;
  .choice-copy small{font-size:11px}
  .form-panel{padding:20px}
 }
+
+
+/* Reset native button appearance so the home choices render as designed */
+button.home-action{
+  appearance:none;
+  -webkit-appearance:none;
+  display:flex;
+  width:100%;
+  margin:0;
+  font-family:inherit;
+  font-size:inherit;
+  line-height:normal;
+  color:inherit;
+  background:#fff;
+  border:1px solid #e8e8f2;
+  border-radius:18px;
+  box-shadow:0 10px 30px #3032560a;
+  padding:19px 18px;
+}
+button.home-action:focus-visible{
+  outline:3px solid #aaa4ed;
+  outline-offset:3px;
+}
+.install-app-button{
+  appearance:none;
+  -webkit-appearance:none;
+  border:0;
+  font-family:inherit;
+  cursor:pointer;
+}
