@@ -246,7 +246,8 @@ function showHomeChoices() {
   showStatus("homeStatus", "");
 }
 $("showCreateForm").addEventListener("click", () => showHomeChoice("create"));
-$("showJoinForm").addEventListener("click", () => showHomeChoice("join"));\n$("roomLifetime").addEventListener("change", () => $("temporaryDurationWrap").classList.toggle("hidden", $("roomLifetime").value === "permanent"));
+$("showJoinForm").addEventListener("click", () => showHomeChoice("join"));
+$("roomLifetime").addEventListener("change", () => $("temporaryDurationWrap").classList.toggle("hidden", $("roomLifetime").value === "permanent"));
 document.querySelectorAll("[data-back-home]").forEach(button => button.addEventListener("click", showHomeChoices));
 
 $("createForm").addEventListener("submit", createRoom);
@@ -261,7 +262,8 @@ $("enterCreatedRoom").addEventListener("click", async () => {
   catch (error) { showHome(); showStatus("homeStatus", error.message); }
 });
 $("copyLink").addEventListener("click", () => copyValue($("inviteLink").value, "homeStatus"));
-$("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));\n$("copyEncryptionKey").addEventListener("click", () => copyValue($("inviteEncryptionKey").value, "homeStatus"));
+$("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));
+$("copyEncryptionKey").addEventListener("click", () => copyValue($("inviteEncryptionKey").value, "homeStatus"));
 $("leaveButton").addEventListener("click", leaveRoom);
 $("roomMenuButton").addEventListener("click", () => $("roomMenu").classList.toggle("hidden"));
 $("copyInviteButton").addEventListener("click", () => copyValue(`${location.origin}/?room=${state.roomId}\nPasscode: ${state.passcode}`));
