@@ -33,7 +33,7 @@ const createLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 5, standardHe
 const joinLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 
 const rooms = new Map();
-const ROOM_TTL = 6 * 60 * 60 * 1000;
+const DEFAULT_ROOM_TTL = 6 * 60 * 60 * 1000;
 const MAX_PEOPLE = 8;
 const MAX_MESSAGE = 4096; // encrypted AES-GCM envelope
 const recentReports = new Map();
@@ -63,7 +63,7 @@ function cleanText(value, max) {
   return String(value || "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, max);
 }
 function roomSummary(room) {
-  return { id: room.id, name: room.name, count: room.members.size, max: MAX_PEOPLE, expiresAt: room.expiresAt };
+  return { id: room.id, name: room.name, count: room.members.size, max: MAX_PEOPLE, roomType: room.roomType, expiresAt: room.expiresAt };
 }
 function safeReason(value) {
   const allowed = ["bullying", "personal information", "inappropriate content", "spam", "other"];
@@ -93,13 +93,19 @@ function destroyRoom(id) {
 setInterval(() => {
   const now = Date.now();
   for (const [id, room] of rooms) {
-    if (room.expiresAt <= now || room.members.size === 0) destroyRoom(id);
+    if (room.expiresAt && room.expiresAt <= now) destroyRoom(id);
   }
 }, 60_000).unref();
 
 app.post("/api/rooms", createLimiter, (req, res) => {
   const name = cleanText(req.body?.name, 32);
   const passcode = String(req.body?.passcode || "");
+  const roomType = req.body?.roomType === "permanent" ? "permanent" : "temporary";
+  const durationHours = Number(req.body?.durationHours || 6);
+  const allowedDurations = [1, 6, 24, 72];
+  if (roomType === "temporary" && !allowedDurations.includes(durationHours)) {
+    return res.status(400).json({ error: "Choose a valid temporary room duration." });
+  }
   if (!name) return res.status(400).json({ error: "Enter a room name." });
   if (passcode.length < 8 || passcode.length > 64) {
     return res.status(400).json({ error: "Use a room passcode between 8 and 64 characters." });
@@ -110,14 +116,14 @@ app.post("/api/rooms", createLimiter, (req, res) => {
   const moderatorKey = randomToken(24);
   rooms.set(id, {
     id, name, passHash: hashSecret(passcode), moderatorHash: hashSecret(moderatorKey),
-    members: new Map(), expiresAt: Date.now() + ROOM_TTL, createdAt: Date.now()
+    members: new Map(), roomType, expiresAt: roomType === "permanent" ? null : Date.now() + durationHours * 60 * 60 * 1000, createdAt: Date.now()
   });
   res.status(201).json({ id, moderatorKey, inviteUrl: `${req.protocol}://${req.get("host")}/?room=${id}` });
 });
 
 app.post("/api/rooms/:id/check", joinLimiter, (req, res) => {
   const room = rooms.get(req.params.id);
-  if (!room || room.expiresAt <= Date.now()) return res.status(404).json({ error: "Room not found or expired." });
+  if (!room || (room.expiresAt && room.expiresAt <= Date.now())) return res.status(404).json({ error: "Room not found or expired." });
   const passcode = String(req.body?.passcode || "");
   if (!verifySecret(passcode, room.passHash)) return res.status(403).json({ error: "That passcode isn't correct." });
   if (room.members.size >= MAX_PEOPLE) return res.status(409).json({ error: "This room is full." });
@@ -137,7 +143,7 @@ io.on("connection", socket => {
     const id = cleanText(data.roomId, 32);
     const passcode = String(data.passcode || "");
     const room = rooms.get(id);
-    if (!room || room.expiresAt <= Date.now()) return ack({ ok: false, error: "Room not found or expired." });
+    if (!room || (room.expiresAt && room.expiresAt <= Date.now())) return ack({ ok: false, error: "Room not found or expired." });
     if (room.members.size >= MAX_PEOPLE) return ack({ ok: false, error: "This room is full." });
     if (!verifySecret(passcode, room.passHash)) return ack({ ok: false, error: "Incorrect room passcode." });
 
@@ -269,7 +275,7 @@ io.on("connection", socket => {
       id: socketId, alias: member.alias, isModerator: member.isModerator
     })));
     if (room.members.size) io.to(joinedRoom).emit("chat:notice", { text: `${alias || "A participant"} left the room.` });
-    else destroyRoom(joinedRoom);
+    // Keep empty rooms available until their configured expiry or moderator deletion.
   });
 });
 
