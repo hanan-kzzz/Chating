@@ -46,7 +46,7 @@ async function createRoom(event) {
   const passcode = $("createPass").value;
   state.roomKey = generateRoomKey();
   try {
-    const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, passcode }) });
+    const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, passcode, roomType: $("roomLifetime").value, durationHours: Number($("temporaryDuration").value) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not create room.");
     state.roomId = data.id; state.roomName = name; state.moderatorKey = data.moderatorKey;
@@ -246,7 +246,7 @@ function showHomeChoices() {
   showStatus("homeStatus", "");
 }
 $("showCreateForm").addEventListener("click", () => showHomeChoice("create"));
-$("showJoinForm").addEventListener("click", () => showHomeChoice("join"));
+$("showJoinForm").addEventListener("click", () => showHomeChoice("join"));\n$("roomLifetime").addEventListener("change", () => $("temporaryDurationWrap").classList.toggle("hidden", $("roomLifetime").value === "permanent"));
 document.querySelectorAll("[data-back-home]").forEach(button => button.addEventListener("click", showHomeChoices));
 
 $("createForm").addEventListener("submit", createRoom);
