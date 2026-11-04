@@ -35,7 +35,7 @@ const joinLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 20, standardHea
 const rooms = new Map();
 const ROOM_TTL = 6 * 60 * 60 * 1000;
 const MAX_PEOPLE = 8;
-const MAX_MESSAGE = 500;
+const MAX_MESSAGE = 4096; // encrypted AES-GCM envelope
 const recentReports = new Map();
 const activeCalls = new Map();
 
@@ -162,11 +162,13 @@ io.on("connection", socket => {
     if (now - lastMessageAt < 900) return ack({ ok: false, error: "Please slow down." });
     if (now - countWindow > 60_000) { countWindow = now; messageCount = 0; }
     if (++messageCount > 25) return ack({ ok: false, error: "Message limit reached. Please wait a minute." });
-    const text = cleanText(data.text, MAX_MESSAGE);
-    if (!text) return ack({ ok: false, error: "Write a message first." });
-    if (containsContactInfo(text)) return ack({ ok: false, error: "For privacy, don't share phone numbers, email addresses, links or contact details." });
+    const encrypted = data.encrypted === true && data.ciphertext && data.iv;
+    if (!encrypted || typeof data.ciphertext !== "string" || typeof data.iv !== "string" ||
+        data.ciphertext.length > MAX_MESSAGE || data.iv.length > 64) {
+      return ack({ ok: false, error: "Invalid encrypted message. Update or reload QuietRoom." });
+    }
     lastMessageAt = now;
-    io.to(joinedRoom).emit("chat:message", { id: randomToken(8), alias, text, at: now });
+    io.to(joinedRoom).emit("chat:message", { id: randomToken(8), alias, encrypted: true, ciphertext: data.ciphertext, iv: data.iv, at: now });
     ack({ ok: true });
   });
 
