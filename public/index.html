@@ -71,7 +71,7 @@
         <div class="chat-layout">
           <section class="chat-panel">
             <div class="chat-topline"><span><span class="status-dot"></span> Live conversation</span><span id="roomExpiry"></span></div>
-            <div id="messages" class="messages" aria-live="polite" aria-label="Chat messages"><div class="welcome-message"><span class="welcome-star">✳</span><strong>You're in a quiet space.</strong><p>Say hello, be kind, and keep personal information private.</p></div></div>
+            <div class="call-toolbar"><button id="groupVoiceButton" class="call-action" type="button">☎ Group voice</button><button id="groupVideoButton" class="call-action video" type="button">▣ Group video</button><span id="callStatus" class="call-status"></span></div><div id="callStage" class="call-stage hidden"><div id="remoteVideos" class="remote-videos"></div><video id="localVideo" class="local-video hidden" autoplay playsinline muted></video><div class="call-controls"><button id="muteCallButton" type="button">Mute mic</button><button id="cameraCallButton" type="button">Camera off</button><button id="leaveCallButton" class="end-call" type="button">End call</button></div></div><div id="messages" class="messages" aria-live="polite" aria-label="Chat messages"><div class="welcome-message"><span class="welcome-star">✳</span><strong>You're in a quiet space.</strong><p>Say hello, be kind, and keep personal information private.</p></div></div>
             <div id="chatStatus" class="chat-status" role="status" aria-live="polite"></div>
             <form id="messageForm" class="composer"><label class="sr-only" for="messageInput">Write a message</label><input id="messageInput" maxlength="500" autocomplete="off" placeholder="Write a message…" required><button type="submit" class="send-button" aria-label="Send message">↑</button></form>
             <div class="composer-hint">No links or contact details · 500 character limit</div>
@@ -90,6 +90,7 @@
       <p class="modal-warning">Your moderator key is kept only in this browser tab. If you close it, you may lose moderator controls.</p><button id="enterCreatedRoom" type="button" class="button primary full">Enter room</button>
     </form>
   </dialog>
+  <dialog id="incomingCallDialog" class="modal"><form method="dialog" class="modal-card"><div class="modal-icon">☎</div><h2 id="incomingCallTitle">Incoming call</h2><p id="incomingCallDescription">A room member is calling.</p><div class="call-invite-actions"><button id="declineCallButton" type="button" class="button secondary">Decline</button><button id="acceptCallButton" type="button" class="button primary">Accept</button></div></form></dialog>
   <dialog id="reportDialog" class="modal">
     <form id="reportForm" class="modal-card"><button type="button" class="modal-close" data-close-report aria-label="Close">×</button><div class="modal-icon warning">!</div><h2>Report participant</h2><p>Choose the reason that best describes the concern. A report is sent to the room moderator, if one is present.</p>
       <input type="hidden" id="reportTarget"><label for="reportReason">Reason</label><select id="reportReason"><option>bullying</option><option>personal information</option><option>inappropriate content</option><option>spam</option><option>other</option></select><button type="submit" class="button primary full">Send report</button>
