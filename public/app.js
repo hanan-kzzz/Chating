@@ -2,11 +2,37 @@ const socket = io();
 const $ = (id) => document.getElementById(id);
 const state = {
   roomId: null, roomName: null, alias: null, moderator: false,
-  moderatorKey: null, passcode: null, inviteUrl: null, members: [],
+  moderatorKey: null, passcode: null, roomKey: null, inviteUrl: null, members: [],
   blocked: new Set(), pendingCreated: false, activeCallId: null, callMode: null, callScope: null, localStream: null, peerConnections: new Map(), incomingCall: null
 };
 
-function showStatus(id, message, isError = true) {
+
+function bytesToBase64(bytes) { let binary = ""; bytes.forEach(byte => binary += String.fromCharCode(byte)); return btoa(binary); }
+function base64ToBytes(value) { return Uint8Array.from(atob(value), char => char.charCodeAt(0)); }
+function generateRoomKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return bytesToBase64(bytes).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
+}
+async function importRoomKey(encoded) {
+  const normalized = encoded.replace(/-/g,"+").replace(/_/g,"/");
+  const raw = base64ToBytes(normalized + "=".repeat((4 - normalized.length % 4) % 4));
+  if (raw.length !== 32) throw new Error("Invalid room encryption key. Ask the creator to share the full key.");
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt","decrypt"]);
+}
+async function encryptMessage(clearText) {
+  const key = await importRoomKey(state.roomKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(clearText);
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+  return { encrypted: true, iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(cipher)) };
+}
+async function decryptMessage(message) {
+  if (!message.encrypted) return "[Unencrypted message — not displayed]";
+  const key = await importRoomKey(state.roomKey);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(message.iv) }, key, base64ToBytes(message.ciphertext));
+  return new TextDecoder().decode(plain);
+}
+\nfunction showStatus(id, message, isError = true) {
   const el = $(id); el.textContent = message; el.style.color = isError ? "#c05d67" : "#4a9a78";
 }
 function showHome() { $("homeView").classList.remove("hidden"); $("roomView").classList.add("hidden"); }
@@ -18,20 +44,23 @@ async function createRoom(event) {
   showStatus("homeStatus", "Creating your private room…", false);
   const name = $("roomName").value.trim();
   const passcode = $("createPass").value;
+  state.roomKey = generateRoomKey();
   try {
     const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, passcode }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not create room.");
     state.roomId = data.id; state.roomName = name; state.moderatorKey = data.moderatorKey;
     state.passcode = passcode; state.inviteUrl = data.inviteUrl; state.pendingCreated = true;
-    $("inviteLink").value = data.inviteUrl; $("invitePasscode").value = passcode;
+    $("inviteLink").value = data.inviteUrl; $("invitePasscode").value = passcode; $("inviteEncryptionKey").value = state.roomKey;
     $("inviteDialog").showModal();
     showStatus("homeStatus", "");
   } catch (error) { showStatus("homeStatus", error.message); }
 }
 
-async function joinRoom(roomId, passcode, moderatorKey = null) {
+async function joinRoom(roomId, passcode, moderatorKey = null, roomKey = state.roomKey) {
   if (!roomId || !passcode) throw new Error("Enter a room code and passcode.");
+  if (!roomKey) throw new Error("Enter the room encryption key shared by the creator.");
+  await importRoomKey(roomKey);
   const check = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/check`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ passcode })
   });
@@ -40,7 +69,7 @@ async function joinRoom(roomId, passcode, moderatorKey = null) {
   return new Promise((resolve, reject) => {
     socket.emit("room:join", { roomId, passcode, moderatorKey }, result => {
       if (!result?.ok) return reject(new Error(result?.error || "Unable to join room."));
-      state.roomId = roomId; state.roomName = result.room.name; state.alias = result.alias;
+      state.roomId = roomId; state.roomName = result.room.name; state.alias = result.alias; state.roomKey = roomKey; sessionStorage.setItem("quietroom-key-" + roomId, roomKey);
       state.moderator = result.isModerator; state.passcode = passcode;
       $("activeRoomName").textContent = state.roomName;
       $("closeRoomButton").classList.toggle("hidden", !state.moderator);
@@ -66,7 +95,7 @@ function addMessage(message) {
   wrapper.className = "message" + (message.alias === state.alias ? " mine" : "");
   const meta = document.createElement("div"); meta.className = "message-meta";
   meta.textContent = `${message.alias} · ${new Date(message.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-  const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = message.text;
+  const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = clearText;
   wrapper.append(meta, bubble); $("messages").appendChild(wrapper); scrollMessages();
 }
 function renderMembers() {
@@ -193,7 +222,7 @@ socket.on("call:ended", data => { if (data.callId === state.activeCallId) { clea
 function leaveRoom() {
   cleanupCall(false);
   socket.disconnect(); socket.connect();
-  state.roomId = null; state.alias = null; state.moderator = false; state.moderatorKey = null; state.passcode = null;
+  if (state.roomId) sessionStorage.removeItem("quietroom-key-" + state.roomId);\n  state.roomId = null; state.alias = null; state.moderator = false; state.moderatorKey = null; state.passcode = null; state.roomKey = null;
   state.members = []; state.blocked.clear();
   history.replaceState({}, "", "/"); showHome();
 }
@@ -223,28 +252,32 @@ document.querySelectorAll("[data-back-home]").forEach(button => button.addEventL
 $("createForm").addEventListener("submit", createRoom);
 $("joinForm").addEventListener("submit", async event => {
   event.preventDefault();
-  try { await joinRoom($("roomId").value.trim(), $("joinPass").value); showStatus("homeStatus", ""); }
+  try { await joinRoom($("roomId").value.trim(), $("joinPass").value, null, $("joinKey").value.trim()); showStatus("homeStatus", ""); }
   catch (error) { showStatus("homeStatus", error.message); }
 });
 $("enterCreatedRoom").addEventListener("click", async () => {
   $("inviteDialog").close();
-  try { await joinRoom(state.roomId, state.passcode, state.moderatorKey); }
+  try { await joinRoom(state.roomId, state.passcode, state.moderatorKey, state.roomKey); }
   catch (error) { showHome(); showStatus("homeStatus", error.message); }
 });
 $("copyLink").addEventListener("click", () => copyValue($("inviteLink").value, "homeStatus"));
-$("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));
+$("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));\n$("copyEncryptionKey").addEventListener("click", () => copyValue($("inviteEncryptionKey").value, "homeStatus"));
 $("leaveButton").addEventListener("click", leaveRoom);
 $("roomMenuButton").addEventListener("click", () => $("roomMenu").classList.toggle("hidden"));
 $("copyInviteButton").addEventListener("click", () => copyValue(`${location.origin}/?room=${state.roomId}\nPasscode: ${state.passcode}`));
 $("closeRoomButton").addEventListener("click", () => {
   if (confirm("Close this room for everyone? This cannot be undone.")) socket.emit("moderation:close", result => { if (!result.ok) showStatus("chatStatus", result.error); });
 });
-$("messageForm").addEventListener("submit", event => {
+$("messageForm").addEventListener("submit", async event => {
   event.preventDefault(); const text = $("messageInput").value.trim(); if (!text) return;
-  socket.emit("chat:message", { text }, result => {
-    if (!result?.ok) showStatus("chatStatus", result?.error || "Message not sent.");
-    else { $("messageInput").value = ""; showStatus("chatStatus", "", false); }
-  });
+  if (text.length > 500) return showStatus("chatStatus", "Messages are limited to 500 characters.");
+  try {
+    const envelope = await encryptMessage(text);
+    socket.emit("chat:message", envelope, result => {
+      if (!result?.ok) showStatus("chatStatus", result?.error || "Message not sent.");
+      else { $("messageInput").value = ""; showStatus("chatStatus", "", false); }
+    });
+  } catch (error) { showStatus("chatStatus", "Encryption failed. Check the room key and reload."); }
 });
 $("reportForm").addEventListener("submit", event => {
   event.preventDefault();
@@ -264,7 +297,7 @@ socket.on("room:removed", data => { alert(data.message); leaveRoom(); });
 socket.on("room:closed", data => { alert(data.message); leaveRoom(); });
 
 const invitedRoom = getRoomIdFromUrl();
-if (invitedRoom) { $("roomId").value = invitedRoom; showHomeChoice("join"); $("joinPass").focus(); }
+if (invitedRoom) { $("roomId").value = invitedRoom; $("joinKey").value = sessionStorage.getItem("quietroom-key-" + invitedRoom) || ""; showHomeChoice("join"); $("joinPass").focus(); }
 
 // PWA installation. Chrome controls whether its native prompt is available.
 let installPromptEvent = null;
