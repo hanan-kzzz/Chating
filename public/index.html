@@ -28,19 +28,29 @@
           <h1>Good conversations.<br><span>No introductions needed.</span></h1>
           <p class="hero-copy">Create a private room, invite people you trust, and chat using a temporary nickname. No profiles. No public room listings.</p>
         </div>
+        <div class="home-actions" id="homeActions">
+          <button type="button" class="home-action create-choice" id="showCreateForm">
+            <span class="choice-icon">＋</span><span class="choice-copy"><strong>Create a room</strong><small>Start a private conversation</small></span><span class="choice-arrow">→</span>
+          </button>
+          <button type="button" class="home-action join-choice" id="showJoinForm">
+            <span class="choice-icon">↗</span><span class="choice-copy"><strong>Join a room</strong><small>Enter with an invitation code</small></span><span class="choice-arrow">→</span>
+          </button>
+        </div>
         <div class="action-grid">
-          <article class="panel create-panel">
+          <article id="createPanel" class="panel create-panel form-panel hidden">
             <div class="panel-icon lavender">＋</div><h2>Create a room</h2>
             <p>Start a private space and share its invite link and passcode.</p>
+            <button type="button" class="form-back" data-back-home>← Back</button>
             <form id="createForm" class="stack">
               <label for="roomName">Room name</label><input id="roomName" maxlength="32" placeholder="e.g. Weekend plans" required>
               <label for="createPass">Room passcode <span class="label-hint">8+ characters</span></label><input id="createPass" type="password" minlength="8" maxlength="64" placeholder="Create a passcode" required>
               <button class="button primary" type="submit">Create private room <span>→</span></button>
             </form>
           </article>
-          <article class="panel join-panel">
+          <article id="joinPanel" class="panel join-panel form-panel hidden">
             <div class="panel-icon mint">↗</div><h2>Join a room</h2>
             <p>Have an invitation link? Enter the room passcode to join.</p>
+            <button type="button" class="form-back" data-back-home>← Back</button>
             <form id="joinForm" class="stack">
               <label for="roomId">Room code</label><input id="roomId" maxlength="32" placeholder="Paste the room code" required>
               <label for="joinPass">Room passcode</label><input id="joinPass" type="password" maxlength="64" placeholder="Enter the passcode" required>
