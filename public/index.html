@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8fc">
+  <meta name="description" content="Private, invite-only anonymous chat rooms.">
+  <title>QuietRoom — Private anonymous chat</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="QuietRoom home"><span class="brand-mark">q</span><span>quietroom</span></a>
+      <span class="top-note"><span class="status-dot"></span> Private by design</span>
+    </header>
+    <main>
+      <section id="homeView" class="home-view">
+        <div class="hero">
+          <div class="eyebrow"><span class="eyebrow-line"></span> A little more private</div>
+          <h1>Good conversations.<br><span>No introductions needed.</span></h1>
+          <p class="hero-copy">Create a private room, invite people you trust, and chat using a temporary nickname. No profiles. No public room listings.</p>
+        </div>
+        <div class="action-grid">
+          <article class="panel create-panel">
+            <div class="panel-icon lavender">＋</div><h2>Create a room</h2>
+            <p>Start a private space and share its invite link and passcode.</p>
+            <form id="createForm" class="stack">
+              <label for="roomName">Room name</label><input id="roomName" maxlength="32" placeholder="e.g. Weekend plans" required>
+              <label for="createPass">Room passcode <span class="label-hint">8+ characters</span></label><input id="createPass" type="password" minlength="8" maxlength="64" placeholder="Create a passcode" required>
+              <button class="button primary" type="submit">Create private room <span>→</span></button>
+            </form>
+          </article>
+          <article class="panel join-panel">
+            <div class="panel-icon mint">↗</div><h2>Join a room</h2>
+            <p>Have an invitation link? Enter the room passcode to join.</p>
+            <form id="joinForm" class="stack">
+              <label for="roomId">Room code</label><input id="roomId" maxlength="32" placeholder="Paste the room code" required>
+              <label for="joinPass">Room passcode</label><input id="joinPass" type="password" maxlength="64" placeholder="Enter the passcode" required>
+              <button class="button secondary" type="submit">Join conversation <span>→</span></button>
+            </form>
+          </article>
+        </div>
+        <div class="safety-strip"><div class="safety-icon">✳</div><div><strong>Keep it comfortable for everyone</strong><p>Only join rooms shared with you. Don't share personal details. You can report messages and block participants.</p></div></div>
+        <p id="homeStatus" class="status-message" role="status" aria-live="polite"></p>
+      </section>
+      <section id="roomView" class="room-view hidden">
+        <div class="room-heading">
+          <button id="leaveButton" class="icon-button" aria-label="Leave room" title="Leave room">←</button>
+          <div class="room-title-wrap"><div class="room-kicker">PRIVATE ROOM</div><h2 id="activeRoomName">Conversation</h2></div>
+          <button id="roomMenuButton" class="text-button">Room options <span>⌄</span></button>
+        </div>
+        <div id="roomMenu" class="room-menu hidden"><button id="copyInviteButton">Copy invitation link</button><button id="closeRoomButton" class="danger hidden">Close room for everyone</button></div>
+        <div class="chat-layout">
+          <section class="chat-panel">
+            <div class="chat-topline"><span><span class="status-dot"></span> Live conversation</span><span id="roomExpiry"></span></div>
+            <div id="messages" class="messages" aria-live="polite" aria-label="Chat messages"><div class="welcome-message"><span class="welcome-star">✳</span><strong>You're in a quiet space.</strong><p>Say hello, be kind, and keep personal information private.</p></div></div>
+            <div id="chatStatus" class="chat-status" role="status" aria-live="polite"></div>
+            <form id="messageForm" class="composer"><label class="sr-only" for="messageInput">Write a message</label><input id="messageInput" maxlength="500" autocomplete="off" placeholder="Write a message…" required><button type="submit" class="send-button" aria-label="Send message">↑</button></form>
+            <div class="composer-hint">No links or contact details · 500 character limit</div>
+          </section>
+          <aside class="people-panel"><div class="people-heading"><strong>In this room</strong><span id="peopleCount">0/8</span></div><div id="peopleList" class="people-list"></div><div class="room-safety"><span>✳</span><div><strong>Room safety</strong><p>Report concerning behaviour. The room creator can remove participants.</p></div></div></aside>
+        </div>
+        <p class="disclaimer">Messages are temporary and are not saved by this demo. Avoid sharing identifying or sensitive information.</p>
+      </section>
+    </main>
+    <footer><span>quietroom</span><span>Private rooms · Temporary nicknames · Be respectful</span></footer>
+  </div>
+  <dialog id="inviteDialog" class="modal">
+    <form method="dialog" class="modal-card"><button class="modal-close" aria-label="Close">×</button><div class="modal-icon">↗</div><h2>Your room is ready</h2><p>Share both the invite link and passcode only with people you trust.</p>
+      <label for="inviteLink">Invitation link</label><div class="copy-row"><input id="inviteLink" readonly><button id="copyLink" type="button" class="button small secondary">Copy</button></div>
+      <label for="invitePasscode">Room passcode</label><div class="copy-row"><input id="invitePasscode" readonly><button id="copyPass" type="button" class="button small secondary">Copy</button></div>
+      <p class="modal-warning">Your moderator key is kept only in this browser tab. If you close it, you may lose moderator controls.</p><button id="enterCreatedRoom" type="button" class="button primary full">Enter room</button>
+    </form>
+  </dialog>
+  <dialog id="reportDialog" class="modal">
+    <form id="reportForm" class="modal-card"><button type="button" class="modal-close" data-close-report aria-label="Close">×</button><div class="modal-icon warning">!</div><h2>Report participant</h2><p>Choose the reason that best describes the concern. A report is sent to the room moderator, if one is present.</p>
+      <input type="hidden" id="reportTarget"><label for="reportReason">Reason</label><select id="reportReason"><option>bullying</option><option>personal information</option><option>inappropriate content</option><option>spam</option><option>other</option></select><button type="submit" class="button primary full">Send report</button>
+    </form>
+  </dialog>
+  <script src="/socket.io/socket.io.js"></script><script src="/app.js" defer></script>
+</body>
+</html>
