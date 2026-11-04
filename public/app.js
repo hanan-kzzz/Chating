@@ -109,6 +109,24 @@ async function copyValue(value, statusId = "chatStatus") {
   catch { showStatus(statusId, "Copy unavailable. Select and copy the text manually."); }
 }
 
+function showHomeChoice(choice) {
+  $("homeActions").classList.add("hidden");
+  $("createPanel").classList.toggle("hidden", choice !== "create");
+  $("joinPanel").classList.toggle("hidden", choice !== "join");
+  showStatus("homeStatus", "");
+  if (choice === "create") $("roomName").focus();
+  if (choice === "join") $("roomId").focus();
+}
+function showHomeChoices() {
+  $("homeActions").classList.remove("hidden");
+  $("createPanel").classList.add("hidden");
+  $("joinPanel").classList.add("hidden");
+  showStatus("homeStatus", "");
+}
+$("showCreateForm").addEventListener("click", () => showHomeChoice("create"));
+$("showJoinForm").addEventListener("click", () => showHomeChoice("join"));
+document.querySelectorAll("[data-back-home]").forEach(button => button.addEventListener("click", showHomeChoices));
+
 $("createForm").addEventListener("submit", createRoom);
 $("joinForm").addEventListener("submit", async event => {
   event.preventDefault();
@@ -153,7 +171,7 @@ socket.on("room:removed", data => { alert(data.message); leaveRoom(); });
 socket.on("room:closed", data => { alert(data.message); leaveRoom(); });
 
 const invitedRoom = getRoomIdFromUrl();
-if (invitedRoom) { $("roomId").value = invitedRoom; $("joinPass").focus(); }
+if (invitedRoom) { $("roomId").value = invitedRoom; showHomeChoice("join"); $("joinPass").focus(); }
 
 // PWA installation: the app shell can open standalone; chat still requires a connection.
 let installPromptEvent = null;
