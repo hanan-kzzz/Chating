@@ -37,6 +37,7 @@ const ROOM_TTL = 6 * 60 * 60 * 1000;
 const MAX_PEOPLE = 8;
 const MAX_MESSAGE = 500;
 const recentReports = new Map();
+const activeCalls = new Map();
 
 const adjectives = ["Quiet", "Sunny", "Clever", "Gentle", "Bright", "Cosmic", "Misty", "Curious", "Swift", "Kind"];
 const nouns = ["Panda", "Comet", "Otter", "Robin", "Maple", "Orchid", "Fox", "Pixel", "Koala", "Cedar"];
@@ -85,6 +86,7 @@ function destroyRoom(id) {
       memberSocket.disconnect(true);
     }
   }
+  for (const [cid, call] of activeCalls) if (call.roomId === id) { call.participants.forEach(sid => io.to(sid).emit('call:ended', { callId: cid, reason: 'Room closed.' })); activeCalls.delete(cid); }
   rooms.delete(id);
   recentReports.delete(id);
 }
@@ -204,7 +206,59 @@ io.on("connection", socket => {
     destroyRoom(id);
   });
 
+
+  socket.on("call:start", (data = {}, ack = () => {}) => {
+    if (!joinedRoom) return ack({ ok: false, error: "Join a room first." });
+    const room = rooms.get(joinedRoom);
+    const mode = data.mode === "video" ? "video" : "audio";
+    const scope = data.scope === "direct" ? "direct" : "group";
+    const targetId = scope === "direct" ? cleanText(data.targetId, 80) : null;
+    if (!room || (scope === "direct" && (!room.members.has(targetId) || targetId === socket.id))) return ack({ ok: false, error: "Participant unavailable." });
+    if (scope === "group" && room.members.size < 2) return ack({ ok: false, error: "Invite someone before starting a group call." });
+    const callId = randomToken(12);
+    const invited = scope === "direct" ? [targetId] : [...room.members.keys()].filter(id => id !== socket.id);
+    const call = { callId, roomId: joinedRoom, mode, scope, hostId: socket.id, participants: new Set([socket.id]), invited: new Set(invited) };
+    activeCalls.set(callId, call);
+    const invite = { callId, mode, scope, callerId: socket.id, callerAlias: alias, roomName: room.name };
+    invited.forEach(id => io.to(id).emit("call:incoming", invite));
+    ack({ ok: true, callId, mode, scope });
+  });
+  socket.on("call:accept", (data = {}, ack = () => {}) => {
+    const call = activeCalls.get(cleanText(data.callId, 80));
+    if (!call || call.roomId !== joinedRoom || !call.invited.has(socket.id)) return ack({ ok: false, error: "Call invitation expired." });
+    call.invited.delete(socket.id); call.participants.add(socket.id);
+    const ids = [...call.participants];
+    ids.forEach(id => io.to(id).emit("call:participants", { callId: call.callId, participantIds: ids }));
+    ack({ ok: true, callId: call.callId, mode: call.mode, scope: call.scope, participantIds: ids });
+  });
+  socket.on("call:decline", (data = {}) => {
+    const call = activeCalls.get(cleanText(data.callId, 80));
+    if (!call || call.roomId !== joinedRoom || !call.invited.has(socket.id)) return;
+    call.invited.delete(socket.id); io.to(call.hostId).emit("call:declined", { callId: call.callId, alias });
+    if (!call.invited.size && call.participants.size === 1) activeCalls.delete(call.callId);
+  });
+  socket.on("call:signal", (data = {}, ack = () => {}) => {
+    const call = activeCalls.get(cleanText(data.callId, 80));
+    const targetId = cleanText(data.targetId, 80);
+    if (!call || call.roomId !== joinedRoom || !call.participants.has(socket.id) || !call.participants.has(targetId)) return ack({ ok: false });
+    if (!data.signal || !["offer", "answer", "ice"].includes(data.signal.type)) return ack({ ok: false });
+    io.to(targetId).emit("call:signal", { callId: call.callId, fromId: socket.id, signal: data.signal }); ack({ ok: true });
+  });
+  socket.on("call:leave", (data = {}) => {
+    const call = activeCalls.get(cleanText(data.callId, 80));
+    if (!call || call.roomId !== joinedRoom || !call.participants.has(socket.id)) return;
+    if (socket.id === call.hostId) {
+      call.participants.forEach(id => io.to(id).emit("call:ended", { callId: call.callId, reason: "Call host ended the call." }));
+      activeCalls.delete(call.callId);
+    } else {
+      call.participants.delete(socket.id);
+      call.participants.forEach(id => io.to(id).emit("call:peer-left", { callId: call.callId, peerId: socket.id }));
+      socket.emit("call:ended", { callId: call.callId, reason: "You left the call." });
+      if (!call.participants.size) activeCalls.delete(call.callId);
+    }
+  });
   socket.on("disconnect", () => {
+    for (const [cid, call] of activeCalls) if (call.roomId === joinedRoom) { call.invited.delete(socket.id); if (call.participants.has(socket.id)) { if (socket.id === call.hostId) { call.participants.forEach(id => io.to(id).emit("call:ended", { callId: cid, reason: "Call host disconnected." })); activeCalls.delete(cid); } else { call.participants.delete(socket.id); call.participants.forEach(id => io.to(id).emit("call:peer-left", { callId: cid, peerId: socket.id })); } } }
     if (!joinedRoom) return;
     const room = rooms.get(joinedRoom);
     if (!room) return;
