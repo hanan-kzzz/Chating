@@ -12,7 +12,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
   <title>QuietRoom — Private anonymous chat</title>
-  <link rel="stylesheet" href="/styles.css?v=quietroom-home-3">
+  <link rel="stylesheet" href="/styles.css?v=quietroom-e2ee-1">
 </head>
 <body>
   <div class="app-shell">
@@ -53,7 +53,7 @@
             <button type="button" class="form-back" data-back-home>← Back</button>
             <form id="joinForm" class="stack">
               <label for="roomId">Room code</label><input id="roomId" maxlength="32" placeholder="Paste the room code" required>
-              <label for="joinPass">Room passcode</label><input id="joinPass" type="password" maxlength="64" placeholder="Enter the passcode" required>
+              <label for="joinPass">Room passcode</label><input id="joinPass" type="password" maxlength="64" placeholder="Enter the passcode" required><label for="joinKey">Room encryption key</label><input id="joinKey" type="password" autocomplete="off" placeholder="Paste the key shared by the room creator" required><small class="encryption-help">Ask the room creator for this key through a separate trusted channel.</small>
               <button class="button secondary" type="submit">Join conversation <span>→</span></button>
             </form>
           </article>
@@ -86,7 +86,7 @@
   <dialog id="inviteDialog" class="modal">
     <form method="dialog" class="modal-card"><button class="modal-close" aria-label="Close">×</button><div class="modal-icon">↗</div><h2>Your room is ready</h2><p>Share both the invite link and passcode only with people you trust.</p>
       <label for="inviteLink">Invitation link</label><div class="copy-row"><input id="inviteLink" readonly><button id="copyLink" type="button" class="button small secondary">Copy</button></div>
-      <label for="invitePasscode">Room passcode</label><div class="copy-row"><input id="invitePasscode" readonly><button id="copyPass" type="button" class="button small secondary">Copy</button></div>
+      <label for="invitePasscode">Room passcode</label><div class="copy-row"><input id="invitePasscode" readonly><button id="copyPass" type="button" class="button small secondary">Copy</button></div><label for="inviteEncryptionKey">Room encryption key — keep private</label><div class="copy-row"><input id="inviteEncryptionKey" readonly><button id="copyEncryptionKey" type="button" class="button small secondary">Copy</button></div><p class="modal-warning">Share this encryption key separately from the room link. Anyone with it can read messages. If it is lost, messages cannot be decrypted.</p>
       <p class="modal-warning">Your moderator key is kept only in this browser tab. If you close it, you may lose moderator controls.</p><button id="enterCreatedRoom" type="button" class="button primary full">Enter room</button>
     </form>
   </dialog>
@@ -96,6 +96,6 @@
       <input type="hidden" id="reportTarget"><label for="reportReason">Reason</label><select id="reportReason"><option>bullying</option><option>personal information</option><option>inappropriate content</option><option>spam</option><option>other</option></select><button type="submit" class="button primary full">Send report</button>
     </form>
   </dialog>
-  <script src="/socket.io/socket.io.js"></script><script src="/app.js?v=quietroom-home-3" defer></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/app.js?v=quietroom-e2ee-1" defer></script>
 </body>
 </html>
