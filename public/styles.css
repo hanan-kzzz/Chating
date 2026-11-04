@@ -94,3 +94,5 @@ button.home-action:focus-visible{
 .call-controls .end-call{background:#c94f5b;color:white;border-color:#c94f5b}
 .call-invite-actions>*{flex:1}
 @media(max-width:560px){.call-toolbar{padding:9px}.call-action{flex:1;padding:10px 7px}.remote-videos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.encryption-help{font-size:10px;color:#858b9c;line-height:1.45;margin:-4px 0 5px}
