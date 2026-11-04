@@ -56,7 +56,24 @@ async function createRoom(event) {
   document.body.classList.add("is-creating-room");
   state.roomKey = generateRoomKey();
   try {
-    const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, passcode, roomType: $("roomLifetime").value, durationHours: Number($("temporaryDuration").value) }) });
+    const controller = new AbortController();
+    const requestTimeout = setTimeout(() => controller.abort(), 45000);
+    let response;
+    try {
+      response = await fetch("/api/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, passcode, roomType: $("roomLifetime").value, durationHours: Number($("temporaryDuration").value) }),
+        signal: controller.signal
+      });
+    } catch (networkError) {
+      if (networkError.name === "AbortError") {
+        throw new Error("The server is taking too long to respond. Please try again in a moment.");
+      }
+      throw new Error("Could not connect to QuietRoom. Check your internet and try again.");
+    } finally {
+      clearTimeout(requestTimeout);
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not create room.");
     state.roomId = data.id; state.roomName = name; state.moderatorKey = data.moderatorKey;
