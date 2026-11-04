@@ -4,7 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
-  <meta name="description" content="Private, invite-only anonymous chat rooms.">
+  <meta name="description" content="Private, invite-only chat rooms.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <title>QuietRoom — Private anonymous chat</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -18,6 +24,7 @@
       <section id="homeView" class="home-view">
         <div class="hero">
           <div class="eyebrow"><span class="eyebrow-line"></span> A little more private</div>
+          <button id="installAppButton" class="button secondary install-app-button hidden" type="button">Install QuietRoom <span>↓</span></button>
           <h1>Good conversations.<br><span>No introductions needed.</span></h1>
           <p class="hero-copy">Create a private room, invite people you trust, and chat using a temporary nickname. No profiles. No public room listings.</p>
         </div>
