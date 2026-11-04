@@ -12,7 +12,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
   <title>QuietRoom — Private anonymous chat</title>
-  <link rel="stylesheet" href="/styles.css?v=quietroom-e2ee-1">
+  <link rel="stylesheet" href="/styles.css?v=quietroom-lifetime-1">
 </head>
 <body>
   <div class="app-shell">
@@ -44,6 +44,10 @@
             <form id="createForm" class="stack">
               <label for="roomName">Room name</label><input id="roomName" maxlength="32" placeholder="e.g. Weekend plans" required>
               <label for="createPass">Room passcode <span class="label-hint">8+ characters</span></label><input id="createPass" type="password" minlength="8" maxlength="64" placeholder="Create a passcode" required>
+              <label for="roomLifetime">Room lifetime</label>
+              <select id="roomLifetime"><option value="temporary">Temporary room</option><option value="permanent">Permanent room — no automatic expiry</option></select>
+              <div id="temporaryDurationWrap"><label for="temporaryDuration">Delete room after</label><select id="temporaryDuration"><option value="1">1 hour</option><option value="6" selected>6 hours</option><option value="24">24 hours</option><option value="72">3 days</option></select></div>
+              <p class="room-lifetime-help">Permanent rooms stay until the moderator closes them. Temporary rooms expire automatically.</p>
               <button class="button primary" type="submit">Create private room <span>→</span></button>
             </form>
           </article>
@@ -96,6 +100,6 @@
       <input type="hidden" id="reportTarget"><label for="reportReason">Reason</label><select id="reportReason"><option>bullying</option><option>personal information</option><option>inappropriate content</option><option>spam</option><option>other</option></select><button type="submit" class="button primary full">Send report</button>
     </form>
   </dialog>
-  <script src="/socket.io/socket.io.js"></script><script src="/app.js?v=quietroom-e2ee-1" defer></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/app.js?v=quietroom-lifetime-1" defer></script>
 </body>
 </html>
