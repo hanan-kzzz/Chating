@@ -42,9 +42,18 @@ function getRoomIdFromUrl() { return new URLSearchParams(location.search).get("r
 
 async function createRoom(event) {
   event.preventDefault();
-  showStatus("homeStatus", "Creating your private room…", false);
+  const form = $("createForm");
+  const submitButton = form.querySelector('button[type="submit"]');
+  const loading = $("createLoading");
+  if (submitButton.disabled) return;
   const name = $("roomName").value.trim();
   const passcode = $("createPass").value;
+  const originalButtonText = submitButton.innerHTML;
+  submitButton.disabled = true;
+  submitButton.classList.add("is-loading");
+  submitButton.innerHTML = '<span class="button-spinner" aria-hidden="true"></span> Creating room…';
+  loading.classList.remove("hidden");
+  document.body.classList.add("is-creating-room");
   state.roomKey = generateRoomKey();
   try {
     const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, passcode, roomType: $("roomLifetime").value, durationHours: Number($("temporaryDuration").value) }) });
@@ -55,7 +64,15 @@ async function createRoom(event) {
     $("inviteLink").value = data.inviteUrl; $("invitePasscode").value = passcode; $("inviteEncryptionKey").value = state.roomKey;
     $("inviteDialog").showModal();
     showStatus("homeStatus", "");
-  } catch (error) { showStatus("homeStatus", error.message); }
+  } catch (error) {
+    showStatus("homeStatus", error.message || "Could not create room.");
+  } finally {
+    loading.classList.add("hidden");
+    document.body.classList.remove("is-creating-room");
+    submitButton.disabled = false;
+    submitButton.classList.remove("is-loading");
+    submitButton.innerHTML = originalButtonText;
+  }
 }
 
 async function joinRoom(roomId, passcode, moderatorKey = null, roomKey = state.roomKey) {
