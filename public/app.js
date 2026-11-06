@@ -58,9 +58,11 @@ async function createRoom(event) {
   submitButton.innerHTML = '<span class="button-spinner" aria-hidden="true"></span> Creating room…';
   loading.classList.remove("hidden");
   document.body.classList.add("is-creating-room");
-  state.roomKey = generateRoomKey();
 
   try {
+    // Generate the encryption key inside the guarded block so a Web Crypto
+    // failure cannot leave the loading overlay stuck or prevent cleanup.
+    state.roomKey = generateRoomKey();
     requestTimeout = setTimeout(() => controller.abort(), 20000);
     const response = await fetch("/api/rooms", {
       method: "POST",
