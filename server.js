@@ -193,8 +193,9 @@ io.on("connection", socket => {
       return ack({ ok: false, error: "Invalid encrypted message. Update or reload QuietRoom." });
     }
     lastMessageAt = now;
-    io.to(joinedRoom).emit("chat:message", { id: randomToken(8), alias, encrypted: true, ciphertext: data.ciphertext, iv: data.iv, at: now });
-    ack({ ok: true });
+    const messageId = randomToken(8);
+    io.to(joinedRoom).emit("chat:message", { id: messageId, alias, encrypted: true, ciphertext: data.ciphertext, iv: data.iv, at: now });
+    ack({ ok: true, messageId, at: now });
   });
 
   socket.on("chat:report", (data = {}, ack = () => {}) => {
