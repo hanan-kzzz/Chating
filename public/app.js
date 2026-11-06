@@ -11,7 +11,7 @@ function bytesToBase64(bytes) { let binary = ""; bytes.forEach(byte => binary +=
 function base64ToBytes(value) { return Uint8Array.from(atob(value), char => char.charCodeAt(0)); }
 function generateRoomKey() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return bytesToBase64(bytes).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
+  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 async function importRoomKey(encoded) {
   const normalized = encoded.replace(/-/g,"+").replace(/_/g,"/");
