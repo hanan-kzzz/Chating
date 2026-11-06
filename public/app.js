@@ -1,5 +1,6 @@
 const socket = io();
 const $ = (id) => document.getElementById(id);
+const renderedMessageIds = new Set();
 const state = {
   roomId: null, roomName: null, alias: null, moderator: false,
   moderatorKey: null, passcode: null, roomKey: null, inviteUrl: null, members: [],
@@ -166,6 +167,7 @@ function addNotice(text) {
 }
 function scrollMessages() { $("messages").scrollTop = $("messages").scrollHeight; }
 async function addMessage(message) {
+  if (message.id && renderedMessageIds.has(message.id)) return;
   if (state.blocked.has(message.alias)) return;
   let clearText;
   try {
@@ -179,7 +181,7 @@ async function addMessage(message) {
   const meta = document.createElement("div"); meta.className = "message-meta";
   meta.textContent = `${message.alias} · ${new Date(message.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = clearText;
-  wrapper.append(meta, bubble); $("messages").appendChild(wrapper); scrollMessages();
+  wrapper.append(meta, bubble); $("messages").appendChild(wrapper); if (message.id) renderedMessageIds.add(message.id); scrollMessages();
 }
 function renderMembers() {
   const list = $("peopleList"); list.replaceChildren();
@@ -307,7 +309,7 @@ function leaveRoom() {
   socket.disconnect(); socket.connect();
   if (state.roomId) sessionStorage.removeItem("quietroom-key-" + state.roomId);
   state.roomId = null; state.alias = null; state.moderator = false; state.moderatorKey = null; state.passcode = null; state.roomKey = null;
-  state.members = []; state.blocked.clear();
+  state.members = []; state.blocked.clear(); renderedMessageIds.clear();
   history.replaceState({}, "", "/"); showHome();
 }
 async function copyValue(value, statusId = "chatStatus") {
@@ -360,7 +362,19 @@ $("messageForm").addEventListener("submit", async event => {
     const envelope = await encryptMessage(text);
     socket.emit("chat:message", envelope, result => {
       if (!result?.ok) showStatus("chatStatus", result?.error || "Message not sent.");
-      else { $("messageInput").value = ""; showStatus("chatStatus", "", false); }
+      else {
+        $("messageInput").value = "";
+        // Render the sender copy from the local plaintext only after server acceptance.
+        // The server still receives and broadcasts only the encrypted envelope.
+        if (result.messageId && !renderedMessageIds.has(result.messageId)) {
+          const wrapper = document.createElement("article"); wrapper.className = "message mine";
+          const meta = document.createElement("div"); meta.className = "message-meta";
+          meta.textContent = `${state.alias} · ${new Date(result.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+          const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = text;
+          wrapper.append(meta, bubble); $("messages").appendChild(wrapper); renderedMessageIds.add(result.messageId); scrollMessages();
+        }
+        showStatus("chatStatus", "", false);
+      }
     });
   } catch (error) { showStatus("chatStatus", "Encryption failed. Check the room key and reload."); }
 });
