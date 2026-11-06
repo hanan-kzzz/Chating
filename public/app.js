@@ -115,7 +115,7 @@ async function createRoom(event) {
 function makeOneTapInvite(baseUrl, passcode, roomKey) {
   const url = new URL(baseUrl, location.origin);
   const packed = btoa(JSON.stringify({ passcode, roomKey }))
-    .replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   url.hash = "invite=" + packed;
   return url.toString();
 }
