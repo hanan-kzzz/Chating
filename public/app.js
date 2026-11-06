@@ -165,8 +165,15 @@ function addNotice(text) {
   $("messages").appendChild(node); scrollMessages();
 }
 function scrollMessages() { $("messages").scrollTop = $("messages").scrollHeight; }
-function addMessage(message) {
+async function addMessage(message) {
   if (state.blocked.has(message.alias)) return;
+  let clearText;
+  try {
+    clearText = await decryptMessage(message);
+  } catch (error) {
+    showStatus("chatStatus", "A message could not be decrypted. Check that everyone joined using the same room invitation.", true);
+    return;
+  }
   const wrapper = document.createElement("article");
   wrapper.className = "message" + (message.alias === state.alias ? " mine" : "");
   const meta = document.createElement("div"); meta.className = "message-meta";
