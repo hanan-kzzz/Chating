@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const path = require("path");
 
 const app = express();
+app.set("trust proxy", 1);
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 16 * 1024 });
 const PORT = process.env.PORT || 3000;
