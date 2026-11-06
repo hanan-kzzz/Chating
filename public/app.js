@@ -93,7 +93,7 @@ async function createRoom(event) {
     state.passcode = passcode;
     state.inviteUrl = data.inviteUrl;
     state.pendingCreated = true;
-    $("inviteLink").value = data.inviteUrl;
+    $("inviteLink").value = makeOneTapInvite(data.inviteUrl, passcode, state.roomKey);
     $("invitePasscode").value = passcode;
     $("inviteEncryptionKey").value = state.roomKey;
     $("inviteDialog").showModal();
@@ -112,6 +112,29 @@ async function createRoom(event) {
     submitButton.innerHTML = originalButtonText;
   }
 }
+function makeOneTapInvite(baseUrl, passcode, roomKey) {
+  const url = new URL(baseUrl, location.origin);
+  const packed = btoa(JSON.stringify({ passcode, roomKey }))
+    .replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+  url.hash = "invite=" + packed;
+  return url.toString();
+}
+function getOneTapInvite() {
+  const match = location.hash.match(/^#invite=([A-Za-z0-9_-]+)$/);
+  if (!match) return null;
+  try {
+    const value = match[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(value + "=".repeat((4 - value.length % 4) % 4)));
+  } catch (_) { return null; }
+}
+async function shareRoomInvite() {
+  const url = $("inviteLink").value;
+  if (navigator.share) {
+    try { await navigator.share({ title: "Join my QuietRoom", text: "Tap to join my private room.", url }); }
+    catch (error) { if (error.name !== "AbortError") await copyValue(url, "homeStatus"); }
+  } else await copyValue(url, "homeStatus");
+}
+
 async function joinRoom(roomId, passcode, moderatorKey = null, roomKey = state.roomKey) {
   if (!roomId || !passcode) throw new Error("Enter a room code and passcode.");
   if (!roomKey) throw new Error("Enter the room encryption key shared by the creator.");
@@ -318,6 +341,7 @@ $("enterCreatedRoom").addEventListener("click", async () => {
   catch (error) { showHome(); showStatus("homeStatus", error.message); }
 });
 $("copyLink").addEventListener("click", () => copyValue($("inviteLink").value, "homeStatus"));
+$("shareInviteButton").addEventListener("click", shareRoomInvite);
 $("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));
 $("copyEncryptionKey").addEventListener("click", () => copyValue($("inviteEncryptionKey").value, "homeStatus"));
 $("leaveButton").addEventListener("click", leaveRoom);
@@ -355,7 +379,19 @@ socket.on("room:removed", data => { alert(data.message); leaveRoom(); });
 socket.on("room:closed", data => { alert(data.message); leaveRoom(); });
 
 const invitedRoom = getRoomIdFromUrl();
-if (invitedRoom) { $("roomId").value = invitedRoom; $("joinKey").value = sessionStorage.getItem("quietroom-key-" + invitedRoom) || ""; showHomeChoice("join"); $("joinPass").focus(); }
+const oneTapInvite = getOneTapInvite();
+if (invitedRoom && oneTapInvite?.passcode && oneTapInvite?.roomKey) {
+  $("roomId").value = invitedRoom;
+  showHome();
+  showStatus("homeStatus", "Joining your invitation…", false);
+  joinRoom(invitedRoom, oneTapInvite.passcode, null, oneTapInvite.roomKey)
+    .catch(error => { showHomeChoice("join"); showStatus("homeStatus", error.message); });
+} else if (invitedRoom) {
+  $("roomId").value = invitedRoom;
+  $("joinKey").value = sessionStorage.getItem("quietroom-key-" + invitedRoom) || "";
+  showHomeChoice("join");
+  $("joinPass").focus();
+}
 
 // PWA installation. Chrome controls whether its native prompt is available.
 let installPromptEvent = null;
