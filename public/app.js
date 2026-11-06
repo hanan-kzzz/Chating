@@ -46,44 +46,63 @@ async function createRoom(event) {
   const submitButton = form.querySelector('button[type="submit"]');
   const loading = $("createLoading");
   if (submitButton.disabled) return;
+
   const name = $("roomName").value.trim();
   const passcode = $("createPass").value;
   const originalButtonText = submitButton.innerHTML;
+  const controller = new AbortController();
+  let requestTimeout;
+
   submitButton.disabled = true;
   submitButton.classList.add("is-loading");
   submitButton.innerHTML = '<span class="button-spinner" aria-hidden="true"></span> Creating room…';
   loading.classList.remove("hidden");
   document.body.classList.add("is-creating-room");
   state.roomKey = generateRoomKey();
+
   try {
-    const controller = new AbortController();
-    const requestTimeout = setTimeout(() => controller.abort(), 45000);
-    let response;
-    try {
-      response = await fetch("/api/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, passcode, roomType: $("roomLifetime").value, durationHours: Number($("temporaryDuration").value) }),
-        signal: controller.signal
-      });
-    } catch (networkError) {
-      if (networkError.name === "AbortError") {
-        throw new Error("The server is taking too long to respond. Please try again in a moment.");
-      }
-      throw new Error("Could not connect to QuietRoom. Check your internet and try again.");
-    } finally {
-      clearTimeout(requestTimeout);
+    requestTimeout = setTimeout(() => controller.abort(), 20000);
+    const response = await fetch("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        name,
+        passcode,
+        roomType: $("roomLifetime").value,
+        durationHours: Number($("temporaryDuration").value)
+      }),
+      signal: controller.signal,
+      cache: "no-store"
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("The server returned an unexpected response. Please reload QuietRoom and try again.");
     }
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not create room.");
-    state.roomId = data.id; state.roomName = name; state.moderatorKey = data.moderatorKey;
-    state.passcode = passcode; state.inviteUrl = data.inviteUrl; state.pendingCreated = true;
-    $("inviteLink").value = data.inviteUrl; $("invitePasscode").value = passcode; $("inviteEncryptionKey").value = state.roomKey;
+    if (!response.ok) throw new Error(data.error || `Room creation failed (HTTP ${response.status}).`);
+    if (!data.id || !data.moderatorKey || !data.inviteUrl) {
+      throw new Error("The server response was incomplete. Please reload and try again.");
+    }
+
+    state.roomId = data.id;
+    state.roomName = name;
+    state.moderatorKey = data.moderatorKey;
+    state.passcode = passcode;
+    state.inviteUrl = data.inviteUrl;
+    state.pendingCreated = true;
+    $("inviteLink").value = data.inviteUrl;
+    $("invitePasscode").value = passcode;
+    $("inviteEncryptionKey").value = state.roomKey;
     $("inviteDialog").showModal();
     showStatus("homeStatus", "");
   } catch (error) {
-    showStatus("homeStatus", error.message || "Could not create room.");
+    const message = error.name === "AbortError"
+      ? "Room creation timed out. Please reload the page and try again."
+      : (error.message || "Could not create room. Please try again.");
+    showStatus("homeStatus", message);
   } finally {
+    clearTimeout(requestTimeout);
     loading.classList.add("hidden");
     document.body.classList.remove("is-creating-room");
     submitButton.disabled = false;
@@ -91,7 +110,6 @@ async function createRoom(event) {
     submitButton.innerHTML = originalButtonText;
   }
 }
-
 async function joinRoom(roomId, passcode, moderatorKey = null, roomKey = state.roomKey) {
   if (!roomId || !passcode) throw new Error("Enter a room code and passcode.");
   if (!roomKey) throw new Error("Enter the room encryption key shared by the creator.");
