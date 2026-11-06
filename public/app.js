@@ -94,8 +94,6 @@ async function createRoom(event) {
     state.inviteUrl = data.inviteUrl;
     state.pendingCreated = true;
     $("inviteLink").value = makeOneTapInvite(data.inviteUrl, passcode, state.roomKey);
-    $("invitePasscode").value = passcode;
-    $("inviteEncryptionKey").value = state.roomKey;
     $("inviteDialog").showModal();
     showStatus("homeStatus", "");
   } catch (error) {
@@ -342,8 +340,6 @@ $("enterCreatedRoom").addEventListener("click", async () => {
 });
 $("copyLink").addEventListener("click", () => copyValue($("inviteLink").value, "homeStatus"));
 $("shareInviteButton").addEventListener("click", shareRoomInvite);
-$("copyPass").addEventListener("click", () => copyValue($("invitePasscode").value, "homeStatus"));
-$("copyEncryptionKey").addEventListener("click", () => copyValue($("inviteEncryptionKey").value, "homeStatus"));
 $("leaveButton").addEventListener("click", leaveRoom);
 $("roomMenuButton").addEventListener("click", () => $("roomMenu").classList.toggle("hidden"));
 $("copyInviteButton").addEventListener("click", () => copyValue(`${location.origin}/?room=${state.roomId}\nPasscode: ${state.passcode}`));
