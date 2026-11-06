@@ -1,4 +1,4 @@
-const CACHE_NAME = "quietroom-shell-v6";
+const CACHE_NAME = "quietroom-shell-v7";
 const APP_SHELL = ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", event => {
