@@ -5,6 +5,24 @@ const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
 const crypto = require("crypto");
 const path = require("path");
+const { Pool } = require("pg");
+
+// Supabase PostgreSQL connection. Keep credentials in Render environment variables.
+const dbPool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 5,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000
+    })
+  : null;
+
+if (dbPool) {
+  dbPool.on("error", () => {
+    console.error("Database pool error.");
+  });
+}
 
 const app = express();
 app.set("trust proxy", 1);
@@ -281,6 +299,18 @@ io.on("connection", socket => {
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/health/db", async (_req, res) => {
+  if (!dbPool) {
+    return res.status(503).json({ ok: false, database: "not_configured" });
+  }
+  try {
+    await dbPool.query("SELECT 1");
+    return res.json({ ok: true, database: "connected" });
+  } catch {
+    return res.status(503).json({ ok: false, database: "unavailable" });
+  }
+});
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 server.listen(PORT, () => console.log(`QuietRoom listening on ${PORT}`));
