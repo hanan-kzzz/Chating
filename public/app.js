@@ -357,27 +357,39 @@ $("closeRoomButton").addEventListener("click", () => {
   if (confirm("Close this room for everyone? This cannot be undone.")) socket.emit("moderation:close", result => { if (!result.ok) showStatus("chatStatus", result.error); });
 });
 $("messageForm").addEventListener("submit", async event => {
-  event.preventDefault(); const text = $("messageInput").value.trim(); if (!text) return;
+  event.preventDefault();
+  const input = $("messageInput");
+  const button = $("messageForm").querySelector('button[type="submit"]');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
   if (text.length > 500) return showStatus("chatStatus", "Messages are limited to 500 characters.");
+  if (!state.roomId || !state.roomKey) return showStatus("chatStatus", "Room encryption is not ready. Leave and rejoin using the invitation link.");
+  if (!socket.connected) return showStatus("chatStatus", "Reconnecting to the room… Please wait and try again.");
+  if (button.disabled) return;
+  button.disabled = true;
+  showStatus("chatStatus", "Sending…", false);
   try {
     const envelope = await encryptMessage(text);
-    socket.emit("chat:message", envelope, result => {
-      if (!result?.ok) showStatus("chatStatus", result?.error || "Message not sent.");
-      else {
-        $("messageInput").value = "";
-        // Render the sender copy from the local plaintext only after server acceptance.
-        // The server still receives and broadcasts only the encrypted envelope.
-        if (result.messageId && !renderedMessageIds.has(result.messageId)) {
-          const wrapper = document.createElement("article"); wrapper.className = "message mine";
-          const meta = document.createElement("div"); meta.className = "message-meta";
-          meta.textContent = `${state.alias} · ${new Date(result.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-          const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = text;
-          wrapper.append(meta, bubble); $("messages").appendChild(wrapper); renderedMessageIds.add(result.messageId); scrollMessages();
-        }
-        showStatus("chatStatus", "", false);
+    socket.timeout(10000).emit("chat:message", envelope, (timeoutError, result) => {
+      button.disabled = false;
+      if (timeoutError) return showStatus("chatStatus", "The server did not respond. Check your connection and try again.");
+      if (!result?.ok) return showStatus("chatStatus", result?.error || "Message not sent.");
+      input.value = "";
+      if (result.messageId && !renderedMessageIds.has(result.messageId)) {
+        const wrapper = document.createElement("article"); wrapper.className = "message mine";
+        const meta = document.createElement("div"); meta.className = "message-meta";
+        meta.textContent = `${state.alias} · ${new Date(result.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = text;
+        wrapper.append(meta, bubble); $("messages").appendChild(wrapper);
+        renderedMessageIds.add(result.messageId); scrollMessages();
       }
+      showStatus("chatStatus", "", false);
+      input.focus();
     });
-  } catch (error) { showStatus("chatStatus", "Encryption failed. Check the room key and reload."); }
+  } catch (error) {
+    button.disabled = false;
+    showStatus("chatStatus", "Could not prepare the message. Reload the room and try again.");
+  }
 });
 $("reportForm").addEventListener("submit", event => {
   event.preventDefault();
